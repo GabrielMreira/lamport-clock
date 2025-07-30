@@ -1,9 +1,21 @@
 version: '3.8'
 
 services:
-  lamportClockService:
+  process1:
     build: .
-    command: python -m
+    command: python distributed_sim.py 1
+    networks:
+      - app_net
+
+  process2:
+    build: .
+    command: python distributed_sim.py 2
+    networks:
+      - app_net
+
+  process3:
+    build: .
+    command: python distributed_sim.py 3
     networks:
       - app_net
 

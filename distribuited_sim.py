@@ -3,9 +3,6 @@ import threading
 import time
 import random
 import sys
-import json
-from operator import truediv
-from typing import final
 
 PEERS = {
     1: ('process1', 5001),
@@ -132,7 +129,7 @@ class DistribuitedProcess:
         else:
             self._log("SNAPSHOT INITIATED AS MARKER")
 
-        threading.Thread(target=self._broadcast_markers).start()
+        threading.Thread(target=self._broadcast_marker).start()
 
     def _internal_event(self):
         with self.lock:
@@ -145,3 +142,53 @@ class DistribuitedProcess:
             self._send_message(peer_id, 'MARKER')
 
     def _finalize_snapshot(self):
+        self._log("SNAPSHOT ENDED")
+        print(f"Local state from P{self.id}: {self.snapshot_state}")
+        if not self.in_transit_messages:
+            print("None messages")
+        else:
+            for source_id, message in self.in_transit_messages.items():
+                print(f"   - From canal P{source_id} -> P{self.id}:")
+                for msg in message:
+                    print(f"     '{msg}'")
+        print("=" * 50 + "\n")
+
+        self.is_capturing = False
+        self.snapshot_state = None
+        self.in_transit_messages = {}
+        for peer_id in self.others_peers:
+            self.received_markers_from[peer_id] = False
+
+    def _simulation_loop(self):
+        if self.id == 1:
+            time.sleep(15)
+            with self.lock:
+                if not self.is_capturing:
+                    self._start_snapshot_procedure()
+
+        while True:
+            time.sleep(random.uniform(3,7))
+            action = random.choice(['internal', 'send'])
+
+            if action == 'internal':
+                self._internal_event()
+            elif action == 'send':
+                target_id = random.choice(list(self.others_peers.keys()))
+                self._send_message(target_id, 'EVENT', f'A message event from p{self.id}')
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Use: python distributed_sim.py")
+        sys.exit(1)
+
+    try:
+        process_id = int(sys.argv[1])
+        process = DistribuitedProcess(process_id)
+        process.start()
+    except ValueError as e:
+        print(f"Erro: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nFinishing process.")
+        sys.exit(0)
+
